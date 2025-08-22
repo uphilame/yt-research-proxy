@@ -1,0 +1,17 @@
+import { setCors, handleOptions } from "./_utils.js";
+
+export default async function handler(req, res) {
+  if (handleOptions(req, res)) return;
+  setCors(res);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.status(200).send(`<!doctype html><meta charset="utf-8">
+<title>Privacy Policy – YouTube Research Proxy</title>
+<style>body{font:16px system-ui;margin:2rem;max-width:800px}</style>
+<h1>Privacy Policy</h1>
+<p>This service proxies read-only requests from a Custom GPT to the YouTube Data API v3.</p>
+<ul>
+  <li>No personal data is stored.</li>
+  <li>Requests contain a query or channel ID and return public YouTube metadata.</li>
+  <li>No cookies are set. Logs are limited to Vercel's standard access logs.</li>
+</ul>`);
+}
