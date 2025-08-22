@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   if (handleOptions(req, res)) return;
   try {
     // >>> GANTI DENGAN DOMAIN VERCEL KAMU (tanpa slash akhir)
-    const BASE = "https://YOUR-APP.vercel.app";
+    const BASE = "https://yt-research-proxy.vercel.app/";
 
     const spec = {
       openapi: "3.1.0",
