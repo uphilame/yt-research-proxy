@@ -4,8 +4,8 @@ import { ok, err, handleOptions } from "./_utils.js";
 export default async function handler(req, res) {
   if (handleOptions(req, res)) return;
   try {
-    // >>> GANTI DENGAN DOMAIN VERCEL KAMU (tanpa slash di akhir)
-    const BASE = "https://yt-research-proxy.vercel.app";
+    // >>> GANTI DENGAN DOMAIN VERCEL KAMU (tanpa slash akhir)
+    const BASE = "https://YOUR-APP.vercel.app";
 
     const spec = {
       openapi: "3.1.0",
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
         title: "YouTube Research Proxy",
         version: "1.0.0",
         description:
-          "Read-only proxy for the YouTube Data API v3, used by a Custom GPT via Actions to fetch channel, video, and search data."
+          "Read-only proxy for the YouTube Data API v3. Used by a Custom GPT via Actions to fetch channel, video and search data."
       },
       servers: [{ url: BASE }],
       paths: {
@@ -35,13 +35,7 @@ export default async function handler(req, res) {
                 description: "OK",
                 content: {
                   "application/json": {
-                    schema: {
-                      type: "object",
-                      properties: {
-                        channelId: { type: ["string", "null"] },
-                        raw: { type: "object" }
-                      }
-                    }
+                    schema: { $ref: "#/components/schemas/ResolveHandleResponse" }
                   }
                 }
               }
@@ -65,7 +59,11 @@ export default async function handler(req, res) {
             responses: {
               "200": {
                 description: "OK",
-                content: { "application/json": { schema: { type: "object" } } }
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/ChannelsListResponse" }
+                  }
+                }
               }
             }
           }
@@ -76,17 +74,16 @@ export default async function handler(req, res) {
             operationId: "getVideosPopular",
             summary: "Top videos by views for a channel",
             parameters: [
-              {
-                in: "query",
-                name: "channelId",
-                required: true,
-                schema: { type: "string" }
-              }
+              { in: "query", name: "channelId", required: true, schema: { type: "string" } }
             ],
             responses: {
               "200": {
                 description: "OK",
-                content: { "application/json": { schema: { type: "object" } } }
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/SearchAndVideosWrapper" }
+                  }
+                }
               }
             }
           }
@@ -97,17 +94,16 @@ export default async function handler(req, res) {
             operationId: "getVideosLatest",
             summary: "Latest videos by date for a channel",
             parameters: [
-              {
-                in: "query",
-                name: "channelId",
-                required: true,
-                schema: { type: "string" }
-              }
+              { in: "query", name: "channelId", required: true, schema: { type: "string" } }
             ],
             responses: {
               "200": {
                 description: "OK",
-                content: { "application/json": { schema: { type: "object" } } }
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/SearchAndVideosWrapper" }
+                  }
+                }
               }
             }
           }
@@ -118,25 +114,23 @@ export default async function handler(req, res) {
             operationId: "searchTop",
             summary: "Top search results for a keyword (regional)",
             parameters: [
-              {
-                in: "query",
-                name: "q",
-                required: true,
-                schema: { type: "string" },
-                description: "Search keyword/topic"
-              },
+              { in: "query", name: "q", required: true, schema: { type: "string" } },
               {
                 in: "query",
                 name: "region",
                 required: false,
                 schema: { type: "string", default: "US" },
-                description: "ISO 3166-1 alpha-2 country code (e.g., US, BR, ID)"
+                description: "ISO 3166-1 alpha-2 (e.g., US, BR, ID)"
               }
             ],
             responses: {
               "200": {
                 description: "OK",
-                content: { "application/json": { schema: { type: "object" } } }
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/SearchAndVideosWrapper" }
+                  }
+                }
               }
             }
           }
@@ -158,7 +152,11 @@ export default async function handler(req, res) {
             responses: {
               "200": {
                 description: "OK",
-                content: { "application/json": { schema: { type: "object" } } }
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/VideosListResponse" }
+                  }
+                }
               }
             }
           }
@@ -169,23 +167,17 @@ export default async function handler(req, res) {
             operationId: "getChannelPlaylists",
             summary: "List playlists for a channel",
             parameters: [
-              {
-                in: "query",
-                name: "channelId",
-                required: true,
-                schema: { type: "string" }
-              },
-              {
-                in: "query",
-                name: "maxResults",
-                required: false,
-                schema: { type: "integer", default: 25 }
-              }
+              { in: "query", name: "channelId", required: true, schema: { type: "string" } },
+              { in: "query", name: "maxResults", required: false, schema: { type: "integer", default: 25 } }
             ],
             responses: {
               "200": {
                 description: "OK",
-                content: { "application/json": { schema: { type: "object" } } }
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/PlaylistsListResponse" }
+                  }
+                }
               }
             }
           }
@@ -198,10 +190,141 @@ export default async function handler(req, res) {
             responses: {
               "200": {
                 description: "OK (text/html)",
-                content: {
-                  "text/html": { schema: { type: "string" } }
-                }
+                content: { "text/html": { schema: { type: "string" } } }
               }
+            }
+          }
+        }
+      },
+
+      components: {
+        schemas: {
+          // ---------- Basic building blocks ----------
+          YouTubeSnippet: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              description: { type: "string" },
+              channelId: { type: "string" },
+              channelTitle: { type: "string" },
+              publishedAt: { type: "string" },
+              thumbnails: { type: "object" }
+            },
+            additionalProperties: true
+          },
+          YouTubeStatistics: {
+            type: "object",
+            properties: {
+              viewCount: { type: "string" },
+              likeCount: { type: "string" }
+            },
+            additionalProperties: true
+          },
+          YouTubeContentDetails: {
+            type: "object",
+            properties: { duration: { type: "string" } },
+            additionalProperties: true
+          },
+
+          // ---------- Search ----------
+          SearchItem: {
+            type: "object",
+            properties: {
+              id: {
+                type: "object",
+                properties: { videoId: { type: "string" }, channelId: { type: "string" } },
+                additionalProperties: true
+              },
+              snippet: { $ref: "#/components/schemas/YouTubeSnippet" }
+            },
+            additionalProperties: true
+          },
+          SearchListResponse: {
+            type: "object",
+            properties: {
+              items: { type: "array", items: { $ref: "#/components/schemas/SearchItem" } }
+            },
+            additionalProperties: true
+          },
+
+          // ---------- Videos ----------
+          VideoItem: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              snippet: { $ref: "#/components/schemas/YouTubeSnippet" },
+              statistics: { $ref: "#/components/schemas/YouTubeStatistics" },
+              contentDetails: { $ref: "#/components/schemas/YouTubeContentDetails" },
+              topicDetails: { type: "object", additionalProperties: true }
+            },
+            additionalProperties: true
+          },
+          VideosListResponse: {
+            type: "object",
+            properties: {
+              items: { type: "array", items: { $ref: "#/components/schemas/VideoItem" } }
+            },
+            additionalProperties: true
+          },
+
+          // ---------- Channels ----------
+          ChannelItem: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              snippet: {
+                allOf: [
+                  { $ref: "#/components/schemas/YouTubeSnippet" },
+                  { type: "object", properties: { country: { type: "string" } }, additionalProperties: true }
+                ]
+              },
+              brandingSettings: { type: "object", additionalProperties: true },
+              statistics: { $ref: "#/components/schemas/YouTubeStatistics" },
+              contentDetails: { type: "object", additionalProperties: true }
+            },
+            additionalProperties: true
+          },
+          ChannelsListResponse: {
+            type: "object",
+            properties: {
+              items: { type: "array", items: { $ref: "#/components/schemas/ChannelItem" } }
+            },
+            additionalProperties: true
+          },
+
+          // ---------- Playlists ----------
+          PlaylistItem: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              snippet: { $ref: "#/components/schemas/YouTubeSnippet" },
+              contentDetails: { type: "object", additionalProperties: true }
+            },
+            additionalProperties: true
+          },
+          PlaylistsListResponse: {
+            type: "object",
+            properties: {
+              items: { type: "array", items: { $ref: "#/components/schemas/PlaylistItem" } }
+            },
+            additionalProperties: true
+          },
+
+          // ---------- Wrappers ----------
+          SearchAndVideosWrapper: {
+            type: "object",
+            properties: {
+              search: { $ref: "#/components/schemas/SearchListResponse" },
+              videos: { $ref: "#/components/schemas/VideosListResponse" }
+            }
+          },
+
+          // ---------- Resolve handle ----------
+          ResolveHandleResponse: {
+            type: "object",
+            properties: {
+              channelId: { type: ["string", "null"] },
+              raw: { $ref: "#/components/schemas/SearchListResponse" }
             }
           }
         }
