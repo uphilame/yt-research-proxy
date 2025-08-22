@@ -1,5 +1,17 @@
 import { yt, ok, err, handleOptions } from "./_utils.js";
 
+function slimVideos(wrapped) {
+  const items = wrapped.videos?.items || [];
+  return items.map(v => ({
+    videoId: v.id,
+    title: v.snippet?.title,
+    publishedAt: v.snippet?.publishedAt,
+    views: Number(v.statistics?.viewCount || 0),
+    channelTitle: v.snippet?.channelTitle,
+    url: `https://www.youtube.com/watch?v=${v.id}`
+  }));
+}
+
 async function withStats(searchRes, key) {
   const ids = (searchRes.items || []).map(i => i.id?.videoId).filter(Boolean);
   if (!ids.length) return { search: searchRes, videos: { items: [] } };
@@ -10,10 +22,13 @@ async function withStats(searchRes, key) {
 export default async function handler(req, res) {
   if (handleOptions(req, res)) return;
   try {
-    const { channelId } = req.query;
+    const { channelId, limit = "12", slim = "1" } = req.query;
     if (!channelId) return ok(res, { error: "Missing channelId" }, 400);
     const key = process.env.YOUTUBE_API_KEY;
-    const r = await yt("search", { part: "snippet", channelId, order: "date", maxResults: 15, type: "video" }, key);
-    ok(res, await withStats(r, key));
+    const maxResults = Math.min(Math.max(parseInt(limit, 10) || 12, 3), 15);
+    const r = await yt("search", { part: "snippet", channelId, order: "date", maxResults, type: "video" }, key);
+    const out = await withStats(r, key);
+    if (slim === "1") return ok(res, { items: slimVideos(out) });
+    ok(res, out);
   } catch (e) { err(res, e); }
 }
