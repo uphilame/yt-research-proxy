@@ -4,8 +4,8 @@ import { ok, err, handleOptions } from "./_utils.js";
 export default async function handler(req, res) {
   if (handleOptions(req, res)) return;
   try {
-    // >>> GANTI DENGAN DOMAIN VERCEL KAMU (tanpa slash akhir)
-    const BASE = "https://yt-research-proxy.vercel.app/";
+    // >>> GANTI JIKA PERLU (tanpa slash di akhir)
+    const BASE = "https://yt-research-proxy.vercel.app";
 
     const spec = {
       openapi: "3.1.0",
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
         title: "YouTube Research Proxy",
         version: "1.0.0",
         description:
-          "Read-only proxy for the YouTube Data API v3. Used by a Custom GPT via Actions to fetch channel, video and search data."
+          "Read-only proxy for YouTube Data API v3 used by a Custom GPT via Actions. Provides channel, video and keyword search data."
       },
       servers: [{ url: BASE }],
       paths: {
@@ -74,14 +74,33 @@ export default async function handler(req, res) {
             operationId: "getVideosPopular",
             summary: "Top videos by views for a channel",
             parameters: [
-              { in: "query", name: "channelId", required: true, schema: { type: "string" } }
+              { in: "query", name: "channelId", required: true, schema: { type: "string" } },
+              {
+                in: "query",
+                name: "limit",
+                required: false,
+                schema: { type: "integer", minimum: 3, maximum: 15, default: 8 },
+                description: "Number of results (3–15). Default 8."
+              },
+              {
+                in: "query",
+                name: "slim",
+                required: false,
+                schema: { type: "string", enum: ["0", "1"], default: "1" },
+                description: "Return slim items only when set to '1'."
+              }
             ],
             responses: {
               "200": {
                 description: "OK",
                 content: {
                   "application/json": {
-                    schema: { $ref: "#/components/schemas/SearchAndVideosWrapper" }
+                    schema: {
+                      oneOf: [
+                        { $ref: "#/components/schemas/SearchAndVideosWrapper" },
+                        { $ref: "#/components/schemas/SlimVideoList" }
+                      ]
+                    }
                   }
                 }
               }
@@ -94,14 +113,33 @@ export default async function handler(req, res) {
             operationId: "getVideosLatest",
             summary: "Latest videos by date for a channel",
             parameters: [
-              { in: "query", name: "channelId", required: true, schema: { type: "string" } }
+              { in: "query", name: "channelId", required: true, schema: { type: "string" } },
+              {
+                in: "query",
+                name: "limit",
+                required: false,
+                schema: { type: "integer", minimum: 3, maximum: 15, default: 8 },
+                description: "Number of results (3–15). Default 8."
+              },
+              {
+                in: "query",
+                name: "slim",
+                required: false,
+                schema: { type: "string", enum: ["0", "1"], default: "1" },
+                description: "Return slim items only when set to '1'."
+              }
             ],
             responses: {
               "200": {
                 description: "OK",
                 content: {
                   "application/json": {
-                    schema: { $ref: "#/components/schemas/SearchAndVideosWrapper" }
+                    schema: {
+                      oneOf: [
+                        { $ref: "#/components/schemas/SearchAndVideosWrapper" },
+                        { $ref: "#/components/schemas/SlimVideoList" }
+                      ]
+                    }
                   }
                 }
               }
@@ -120,7 +158,21 @@ export default async function handler(req, res) {
                 name: "region",
                 required: false,
                 schema: { type: "string", default: "US" },
-                description: "ISO 3166-1 alpha-2 (e.g., US, BR, ID)"
+                description: "ISO 3166-1 alpha-2 country code (e.g., US, BR, ID)"
+              },
+              {
+                in: "query",
+                name: "limit",
+                required: false,
+                schema: { type: "integer", minimum: 3, maximum: 15, default: 8 },
+                description: "Number of results (3–15). Default 8."
+              },
+              {
+                in: "query",
+                name: "slim",
+                required: false,
+                schema: { type: "string", enum: ["0", "1"], default: "1" },
+                description: "Return slim items only when set to '1'."
               }
             ],
             responses: {
@@ -128,7 +180,12 @@ export default async function handler(req, res) {
                 description: "OK",
                 content: {
                   "application/json": {
-                    schema: { $ref: "#/components/schemas/SearchAndVideosWrapper" }
+                    schema: {
+                      oneOf: [
+                        { $ref: "#/components/schemas/SearchAndVideosWrapper" },
+                        { $ref: "#/components/schemas/SlimVideoList" }
+                      ]
+                    }
                   }
                 }
               }
@@ -153,9 +210,7 @@ export default async function handler(req, res) {
               "200": {
                 description: "OK",
                 content: {
-                  "application/json": {
-                    schema: { $ref: "#/components/schemas/VideosListResponse" }
-                  }
+                  "application/json": { schema: { $ref: "#/components/schemas/VideosListResponse" } }
                 }
               }
             }
@@ -168,15 +223,19 @@ export default async function handler(req, res) {
             summary: "List playlists for a channel",
             parameters: [
               { in: "query", name: "channelId", required: true, schema: { type: "string" } },
-              { in: "query", name: "maxResults", required: false, schema: { type: "integer", default: 25 } }
+              {
+                in: "query",
+                name: "maxResults",
+                required: false,
+                schema: { type: "integer", default: 25 },
+                description: "Max playlist items to return."
+              }
             ],
             responses: {
               "200": {
                 description: "OK",
                 content: {
-                  "application/json": {
-                    schema: { $ref: "#/components/schemas/PlaylistsListResponse" }
-                  }
+                  "application/json": { schema: { $ref: "#/components/schemas/PlaylistsListResponse" } }
                 }
               }
             }
@@ -199,7 +258,7 @@ export default async function handler(req, res) {
 
       components: {
         schemas: {
-          // ---------- Basic building blocks ----------
+          // ---------- Basics ----------
           YouTubeSnippet: {
             type: "object",
             properties: {
@@ -232,7 +291,10 @@ export default async function handler(req, res) {
             properties: {
               id: {
                 type: "object",
-                properties: { videoId: { type: "string" }, channelId: { type: "string" } },
+                properties: {
+                  videoId: { type: "string" },
+                  channelId: { type: "string" }
+                },
                 additionalProperties: true
               },
               snippet: { $ref: "#/components/schemas/YouTubeSnippet" }
@@ -310,12 +372,31 @@ export default async function handler(req, res) {
             additionalProperties: true
           },
 
-          // ---------- Wrappers ----------
+          // ---------- Wrapper full search+videos ----------
           SearchAndVideosWrapper: {
             type: "object",
             properties: {
               search: { $ref: "#/components/schemas/SearchListResponse" },
               videos: { $ref: "#/components/schemas/VideosListResponse" }
+            }
+          },
+
+          // ---------- Slim responses (for limit&slim=1) ----------
+          SlimVideo: {
+            type: "object",
+            properties: {
+              videoId: { type: "string" },
+              title: { type: "string" },
+              publishedAt: { type: "string" },
+              views: { type: "number" },
+              channelTitle: { type: "string" },
+              url: { type: "string" }
+            }
+          },
+          SlimVideoList: {
+            type: "object",
+            properties: {
+              items: { type: "array", items: { $ref: "#/components/schemas/SlimVideo" } }
             }
           },
 
