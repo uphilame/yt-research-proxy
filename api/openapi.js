@@ -11,7 +11,7 @@ export default async function handler(req, res) {
       openapi: "3.1.0",
       info: {
         title: "YouTube Research Proxy",
-        version: "1.0.0",
+        version: "1.1.0",
         description:
           "Read-only proxy for YouTube Data API v3 used by a Custom GPT via Actions. Provides channel, video and keyword search data."
       },
@@ -173,6 +173,13 @@ export default async function handler(req, res) {
                 required: false,
                 schema: { type: "string", enum: ["0", "1"], default: "1" },
                 description: "Return slim items only when set to '1'."
+              },
+              {
+                in: "query",
+                name: "lang",
+                required: false,
+                schema: { type: "string" },
+                description: "ISO 639-1 (e.g., id, en, pt). Passed to relevanceLanguage."
               }
             ],
             responses: {
@@ -236,6 +243,31 @@ export default async function handler(req, res) {
                 description: "OK",
                 content: {
                   "application/json": { schema: { $ref: "#/components/schemas/PlaylistsListResponse" } }
+                }
+              }
+            }
+          }
+        },
+
+        "/api/thumbUrl": {
+          get: {
+            operationId: "getThumbUrl",
+            summary: "Get YouTube thumbnail URLs for a videoId",
+            parameters: [
+              { in: "query", name: "videoId", required: true, schema: { type: "string" } }
+            ],
+            responses: {
+              "200": {
+                description: "OK",
+                content: {
+                  "application/json": { schema: {
+                    type: "object",
+                    properties: {
+                      videoId:  { type: "string" },
+                      thumbMax: { type: "string" },
+                      thumbHQ:  { type: "string" }
+                    }
+                  } }
                 }
               }
             }
@@ -390,7 +422,8 @@ export default async function handler(req, res) {
               publishedAt: { type: "string" },
               views: { type: "number" },
               channelTitle: { type: "string" },
-              url: { type: "string" }
+              url: { type: "string" },
+              thumb: { type: "string", description: "Thumbnail URL (maxres/high/medium/default)" } // NEW
             }
           },
           SlimVideoList: {
