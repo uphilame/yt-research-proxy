@@ -11,7 +11,7 @@ export default async function handler(req, res) {
       openapi: "3.1.0",
       info: {
         title: "YouTube Research Proxy",
-        version: "1.1.0",
+        version: "1.2.0",
         description:
           "Read-only proxy for YouTube Data API v3 used by a Custom GPT via Actions. Provides channel, video and keyword search data."
       },
@@ -260,14 +260,105 @@ export default async function handler(req, res) {
               "200": {
                 description: "OK",
                 content: {
-                  "application/json": { schema: {
-                    type: "object",
-                    properties: {
-                      videoId:  { type: "string" },
-                      thumbMax: { type: "string" },
-                      thumbHQ:  { type: "string" }
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        videoId: { type: "string" },
+                        thumbMax: { type: "string" },
+                        thumbHQ: { type: "string" }
+                      }
                     }
-                  } }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        // ---------- NEW: aggregated finder ----------
+        "/api/findChannels": {
+          get: {
+            operationId: "findChannels",
+            summary: "Find channels by keyword with subscriber & average-views filters",
+            parameters: [
+              {
+                in: "query",
+                name: "q",
+                required: true,
+                schema: { type: "string" },
+                description: "Keywords separated by ; or , (e.g., 'car music; bass boosted')"
+              },
+              {
+                in: "query",
+                name: "regions",
+                required: false,
+                schema: { type: "string" },
+                description:
+                  "Comma-separated ISO country codes (e.g., 'US,BR,ID'). If omitted, server may use a sensible default."
+              },
+              {
+                in: "query",
+                name: "limitPerRegion",
+                required: false,
+                schema: { type: "integer", default: 8, minimum: 3, maximum: 15 },
+                description: "Items to fetch per region from searchTop. Default 8."
+              },
+              {
+                in: "query",
+                name: "minSubs",
+                required: false,
+                schema: { type: "integer", default: 1000 },
+                description: "Minimum subscriber count (inclusive). Default 1000."
+              },
+              {
+                in: "query",
+                name: "maxSubs",
+                required: false,
+                schema: { type: "integer", default: 2000 },
+                description: "Maximum subscriber count (inclusive). Default 2000."
+              },
+              {
+                in: "query",
+                name: "minAvgViews",
+                required: false,
+                schema: { type: "integer", default: 1000 },
+                description:
+                  "Minimum average views across up to 8 latest uploads (using at least 5 if available). Default 1000."
+              },
+              {
+                in: "query",
+                name: "minPctOver1k",
+                required: false,
+                schema: { type: "number", default: 0.6 },
+                description:
+                  "Minimum fraction (0–1) of those latest uploads that have ≥1k views. Default 0.6 (60%)."
+              },
+              {
+                in: "query",
+                name: "langMap",
+                required: false,
+                schema: { type: "string" },
+                description: "Optional mapping 'US=en,BR=pt,VN=vi' passed through to searchTop."
+              },
+              {
+                in: "query",
+                name: "linksOnly",
+                required: false,
+                schema: { type: "boolean", default: false },
+                description: "If true, return text/plain with one channel URL per line."
+              }
+            ],
+            responses: {
+              "200": {
+                description: "OK",
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/FindChannelsResponse" }
+                  },
+                  "text/plain": {
+                    schema: { type: "string" }
+                  }
                 }
               }
             }
@@ -439,6 +530,28 @@ export default async function handler(req, res) {
             properties: {
               channelId: { type: ["string", "null"] },
               raw: { $ref: "#/components/schemas/SearchListResponse" }
+            }
+          },
+
+          // ---------- NEW: findChannels ----------
+          FindChannelsItem: {
+            type: "object",
+            properties: {
+              channelId: { type: "string" },
+              title: { type: "string" },
+              url: { type: "string" },
+              subscribers: { type: "integer" },
+              avgViews8: { type: "integer" },
+              pctOver1k: { type: "integer", description: "percent of latest uploads ≥1k views" },
+              sampleVideo: { type: "string" }
+            }
+          },
+          FindChannelsResponse: {
+            type: "object",
+            properties: {
+              count: { type: "integer" },
+              results: { type: "array", items: { $ref: "#/components/schemas/FindChannelsItem" } },
+              links: { type: "array", items: { type: "string" } }
             }
           }
         }
